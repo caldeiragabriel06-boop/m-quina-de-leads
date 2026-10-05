@@ -17,6 +17,7 @@ describe('provider failures', () => {
       const error = await postJson('https://api.openai.com/v1/chat/completions', 'key', {}).catch(
         (e) => e,
       );
+      if (!(error instanceof Error)) throw new Error('Expected provider failure');
       expect(error.message).toContain('OpenAI: saldo de créditos');
       expect(error.message).toContain('Aguardar não resolve');
       expect(error.message).not.toContain('SECRET');
