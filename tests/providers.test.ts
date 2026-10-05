@@ -2,6 +2,27 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import { postJson } from '@/lib/http';
 afterEach(() => vi.unstubAllGlobals());
 describe('provider failures', () => {
+  it.each(['insufficient_quota', 'credit_balance_exhausted'])(
+    'identifies OpenAI billing failure %s without leaking upstream content',
+    async (code) => {
+      const fetch = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: { code, type: 'insufficient_quota', message: 'SECRET' },
+          }),
+          { status: 429 },
+        ),
+      );
+      vi.stubGlobal('fetch', fetch);
+      const error = await postJson('https://api.openai.com/v1/chat/completions', 'key', {}).catch(
+        (e) => e,
+      );
+      expect(error.message).toContain('OpenAI: saldo de créditos');
+      expect(error.message).toContain('Aguardar não resolve');
+      expect(error.message).not.toContain('SECRET');
+      expect(fetch).toHaveBeenCalledTimes(1);
+    },
+  );
   it('does not leak upstream error bodies or API credentials', async () => {
     vi.stubGlobal(
       'fetch',
